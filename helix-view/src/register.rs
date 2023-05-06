@@ -3,9 +3,9 @@ use std::{borrow::Cow, collections::HashMap};
 use anyhow::Result;
 use helix_core::hashmap;
 
-use crate::Editor;
+use crate::{document::SCRATCH_BUFFER_NAME, Editor};
 
-pub const SPECIAL_REGISTERS: [char; 3] = ['_', '#', '.'];
+pub const SPECIAL_REGISTERS: [char; 4] = ['_', '#', '.', '%'];
 
 type RegisterValues<'a> = Box<dyn ExactSizeIterator<Item = Cow<'a, str>> + 'a>;
 
@@ -97,6 +97,7 @@ impl Default for Registers {
             '_' => Box::new(BlackholeRegister::default()) as Box<dyn Register>,
             '#' => Box::new(SelectionIndexRegister::default()),
             '.' => Box::new(SelectionContentsRegister::default()),
+            '%' => Box::new(DocumentPathRegister::default()),
         );
 
         Self { inner }
@@ -211,5 +212,30 @@ impl Register for SelectionContentsRegister {
         let text = doc.text().slice(..);
 
         Box::new(doc.selection(view.id).fragments(text))
+    }
+}
+
+#[derive(Debug, Default)]
+struct DocumentPathRegister {}
+
+impl Register for DocumentPathRegister {
+    fn name(&self) -> char {
+        '%'
+    }
+
+    fn preview(&self) -> &str {
+        "<document path>"
+    }
+
+    fn read<'a>(&self, editor: &'a Editor) -> RegisterValues<'a> {
+        let doc = doc!(editor);
+
+        let path = doc
+            .path()
+            .as_ref()
+            .map(|p| p.to_string_lossy())
+            .unwrap_or_else(|| SCRATCH_BUFFER_NAME.into());
+
+        Box::new(std::iter::once(path.into()))
     }
 }
