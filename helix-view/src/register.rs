@@ -5,7 +5,7 @@ use helix_core::hashmap;
 
 use crate::Editor;
 
-pub const SPECIAL_REGISTERS: [char; 1] = ['_'];
+pub const SPECIAL_REGISTERS: [char; 3] = ['_', '#', '.'];
 
 type RegisterValues<'a> = Box<dyn ExactSizeIterator<Item = Cow<'a, str>> + 'a>;
 
@@ -95,6 +95,8 @@ impl Default for Registers {
         // Prepopulate the special registers.
         let inner = hashmap!(
             '_' => Box::new(BlackholeRegister::default()) as Box<dyn Register>,
+            '#' => Box::new(SelectionIndexRegister::default()),
+            '.' => Box::new(SelectionContentsRegister::default()),
         );
 
         Self { inner }
@@ -168,5 +170,46 @@ impl Register for BlackholeRegister {
 
     fn push(&mut self, _editor: &mut Editor, _value: String) -> Result<()> {
         Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+struct SelectionIndexRegister {}
+
+impl Register for SelectionIndexRegister {
+    fn name(&self) -> char {
+        '#'
+    }
+
+    fn preview(&self) -> &str {
+        "<selection indices>"
+    }
+
+    fn read<'a>(&self, editor: &'a Editor) -> RegisterValues<'a> {
+        let (view, doc) = current_ref!(editor);
+        let selections = doc.selection(view.id).len();
+
+        // ExactSizeIterator is implemented for Range<usize> but not RangeInclusive<usize>.
+        Box::new((0..selections).map(|i| i.saturating_add(1).to_string().into()))
+    }
+}
+
+#[derive(Debug, Default)]
+struct SelectionContentsRegister {}
+
+impl Register for SelectionContentsRegister {
+    fn name(&self) -> char {
+        '.'
+    }
+
+    fn preview(&self) -> &str {
+        "<selection contents>"
+    }
+
+    fn read<'a>(&'a self, editor: &'a Editor) -> RegisterValues<'a> {
+        let (view, doc) = current_ref!(editor);
+        let text = doc.text().slice(..);
+
+        Box::new(doc.selection(view.id).fragments(text))
     }
 }
