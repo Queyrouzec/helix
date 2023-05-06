@@ -40,7 +40,6 @@ use tokio::{
 use anyhow::{anyhow, bail, Error};
 
 pub use helix_core::diagnostic::Severity;
-pub use helix_core::register::Registers;
 use helix_core::{
     auto_pairs::AutoPairs,
     syntax::{self, AutoPairConfig, SoftWrap},
@@ -874,7 +873,6 @@ pub struct Editor {
 
     pub count: Option<std::num::NonZeroUsize>,
     pub selected_register: Option<char>,
-    pub registers: Registers,
     pub macro_recording: Option<(char, Vec<KeyEvent>)>,
     pub macro_replaying: Vec<char>,
     pub language_servers: helix_lsp::Registry,
@@ -1031,7 +1029,6 @@ impl Editor {
             theme_loader,
             last_theme: None,
             last_selection: None,
-            registers: Registers::default(),
             clipboard_provider: get_clipboard_provider(),
             status_msg: None,
             autoinfo: None,

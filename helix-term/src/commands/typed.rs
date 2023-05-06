@@ -910,7 +910,7 @@ fn yank_joined(
     let default_sep = Cow::Borrowed(doc.line_ending.as_str());
     let separator = args.first().unwrap_or(&default_sep);
     let register = cx.editor.selected_register.unwrap_or('"');
-    yank_joined_impl(cx.editor, separator, register);
+    yank_joined_impl(cx.editor, cx.registers, separator, register);
     Ok(())
 }
 
@@ -2249,7 +2249,7 @@ fn clear_register(
 
     ensure!(args.len() <= 1, ":clear-register takes at most 1 argument");
     if args.is_empty() {
-        cx.editor.registers.clear();
+        cx.registers.clear();
         cx.editor.set_status("All registers cleared");
         return Ok(());
     }
@@ -2259,7 +2259,7 @@ fn clear_register(
         format!("Invalid register {}", args[0])
     );
     let register = args[0].chars().next().unwrap_or_default();
-    match cx.editor.registers.remove(register) {
+    match cx.registers.remove(register) {
         Some(_) => cx
             .editor
             .set_status(format!("Register {} cleared", register)),

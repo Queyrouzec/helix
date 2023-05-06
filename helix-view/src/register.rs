@@ -238,7 +238,7 @@ impl Register for DocumentPathRegister {
             .map(|p| p.to_string_lossy())
             .unwrap_or_else(|| SCRATCH_BUFFER_NAME.into());
 
-        Box::new(std::iter::once(path.into()))
+        Box::new(std::iter::once(path))
     }
 }
 

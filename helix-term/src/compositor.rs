@@ -2,7 +2,10 @@
 // Q: how does this work with popups?
 // cursive does compositor.screen_mut().add_layer_at(pos::absolute(x, y), <component>)
 use helix_core::Position;
-use helix_view::graphics::{CursorKind, Rect};
+use helix_view::{
+    graphics::{CursorKind, Rect},
+    register::Registers,
+};
 
 use tui::buffer::Buffer as Surface;
 
@@ -22,6 +25,7 @@ pub use helix_view::input::Event;
 
 pub struct Context<'a> {
     pub editor: &'a mut Editor,
+    pub registers: &'a mut Registers,
     pub scroll: Option<usize>,
     pub jobs: &'a mut Jobs,
 }

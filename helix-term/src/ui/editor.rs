@@ -1224,6 +1224,7 @@ impl Component for EditorView {
     ) -> EventResult {
         let mut cx = commands::Context {
             editor: context.editor,
+            registers: context.registers,
             count: None,
             register: None,
             callback: None,
@@ -1279,6 +1280,7 @@ impl Component for EditorView {
                                     // use a fake context here
                                     let mut cx = Context {
                                         editor: cx.editor,
+                                        registers: cx.registers,
                                         jobs: cx.jobs,
                                         scroll: None,
                                     };

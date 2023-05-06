@@ -11,6 +11,7 @@ use helix_view::{
     document::DocumentSavedEventResult,
     editor::{ConfigEvent, EditorEvent},
     graphics::Rect,
+    register::Registers,
     theme,
     tree::Layout,
     Align, Editor,
@@ -65,6 +66,7 @@ pub struct Application {
     compositor: Compositor,
     terminal: Terminal,
     pub editor: Editor,
+    registers: Registers,
 
     config: Arc<ArcSwap<Config>>,
 
@@ -244,6 +246,7 @@ impl Application {
             compositor,
             terminal,
             editor,
+            registers: Registers::default(),
 
             config,
 
@@ -262,6 +265,7 @@ impl Application {
     async fn render(&mut self) {
         let mut cx = crate::compositor::Context {
             editor: &mut self.editor,
+            registers: &mut self.registers,
             jobs: &mut self.jobs,
             scroll: None,
         };
@@ -522,6 +526,7 @@ impl Application {
     pub async fn handle_idle_timeout(&mut self) {
         let mut cx = crate::compositor::Context {
             editor: &mut self.editor,
+            registers: &mut self.registers,
             jobs: &mut self.jobs,
             scroll: None,
         };
@@ -642,6 +647,7 @@ impl Application {
     ) {
         let mut cx = crate::compositor::Context {
             editor: &mut self.editor,
+            registers: &mut self.registers,
             jobs: &mut self.jobs,
             scroll: None,
         };
