@@ -3,9 +3,9 @@ use std::{borrow::Cow, collections::HashMap};
 use anyhow::Result;
 use helix_core::hashmap;
 
-use crate::{document::SCRATCH_BUFFER_NAME, Editor};
+use crate::{clipboard::ClipboardType, document::SCRATCH_BUFFER_NAME, Editor};
 
-pub const SPECIAL_REGISTERS: [char; 4] = ['_', '#', '.', '%'];
+pub const SPECIAL_REGISTERS: [char; 6] = ['_', '#', '.', '%', '*', '+'];
 
 type RegisterValues<'a> = Box<dyn ExactSizeIterator<Item = Cow<'a, str>> + 'a>;
 
@@ -98,6 +98,8 @@ impl Default for Registers {
             '#' => Box::new(SelectionIndexRegister::default()),
             '.' => Box::new(SelectionContentsRegister::default()),
             '%' => Box::new(DocumentPathRegister::default()),
+            '*' => Box::new(SystemClipboardRegister::default()),
+            '+' => Box::new(PrimaryClipboardRegister::default()),
         );
 
         Self { inner }
@@ -238,4 +240,128 @@ impl Register for DocumentPathRegister {
 
         Box::new(std::iter::once(path.into()))
     }
+}
+
+#[derive(Debug, Default)]
+struct SystemClipboardRegister {
+    values: Vec<String>,
+}
+
+impl Register for SystemClipboardRegister {
+    fn name(&self) -> char {
+        '*'
+    }
+
+    fn preview(&self) -> &str {
+        "<system clipboard>"
+    }
+
+    fn read<'a>(&'a self, editor: &'a Editor) -> RegisterValues<'a> {
+        read_from_clipboard(&self.values, editor, ClipboardType::Clipboard)
+    }
+
+    fn write(&mut self, editor: &mut Editor, values: Vec<String>) -> Result<()> {
+        self.values = values;
+        save_to_clipboard(&self.values, editor, ClipboardType::Clipboard)
+    }
+
+    fn push(&mut self, editor: &mut Editor, value: String) -> Result<()> {
+        self.values.push(value);
+        save_to_clipboard(&self.values, editor, ClipboardType::Clipboard)
+    }
+}
+
+#[derive(Debug, Default)]
+struct PrimaryClipboardRegister {
+    values: Vec<String>,
+}
+
+impl Register for PrimaryClipboardRegister {
+    fn name(&self) -> char {
+        '+'
+    }
+
+    fn preview(&self) -> &str {
+        "<primary clipboard>"
+    }
+
+    fn read<'a>(&'a self, editor: &'a Editor) -> RegisterValues<'a> {
+        read_from_clipboard(&self.values, editor, ClipboardType::Selection)
+    }
+
+    fn write(&mut self, editor: &mut Editor, values: Vec<String>) -> Result<()> {
+        self.values = values;
+        save_to_clipboard(&self.values, editor, ClipboardType::Selection)
+    }
+
+    fn push(&mut self, editor: &mut Editor, value: String) -> Result<()> {
+        self.values.push(value);
+        save_to_clipboard(&self.values, editor, ClipboardType::Selection)
+    }
+}
+
+fn save_to_clipboard(
+    values: &[String],
+    editor: &mut Editor,
+    clipboard_type: ClipboardType,
+) -> Result<()> {
+    let line_ending = doc!(editor).line_ending;
+    let joined = values.join(line_ending.as_str());
+
+    editor
+        .clipboard_provider
+        .set_contents(joined, clipboard_type)
+}
+
+fn read_from_clipboard<'a>(
+    saved_values: &'a [String],
+    editor: &'a Editor,
+    clipboard_type: ClipboardType,
+) -> RegisterValues<'a> {
+    match editor.clipboard_provider.get_contents(clipboard_type) {
+        Ok(contents) => {
+            // If we're pasting the same value that we just yanked, re-use
+            // the saved values. This allows pasting multiple selections
+            // even when yanked to a clipboard.
+            if contents_are_saved(saved_values, editor, &contents) {
+                Box::new(saved_values.iter().map(Cow::from))
+            } else {
+                Box::new(std::iter::once(contents.into()))
+            }
+        }
+        Err(err) => {
+            log::error!(
+                "Failed to read {} clipboard: {}",
+                match clipboard_type {
+                    ClipboardType::Clipboard => "system",
+                    ClipboardType::Selection => "primary",
+                },
+                err
+            );
+
+            Box::new(std::iter::empty())
+        }
+    }
+}
+
+fn contents_are_saved(saved_values: &[String], editor: &Editor, mut contents: &str) -> bool {
+    let line_ending = doc!(editor).line_ending.as_str();
+    let mut values = saved_values.iter();
+
+    match values.next() {
+        Some(first) if contents.starts_with(first) => {
+            contents = &contents[first.len()..];
+        }
+        _ => return false,
+    }
+
+    for value in values {
+        if contents.starts_with(line_ending) && contents[line_ending.len()..].starts_with(value) {
+            contents = &contents[line_ending.len() + value.len()..];
+        } else {
+            return false;
+        }
+    }
+
+    true
 }
