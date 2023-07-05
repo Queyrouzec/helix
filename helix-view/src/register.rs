@@ -112,11 +112,15 @@ impl Default for Registers {
 #[derive(Debug, Default)]
 struct SimpleRegister {
     name: char,
+    /// Saved selections or history values.
+    /// These are stored in reverse order to make pushing new values to
+    /// the "beginning" of the preview efficient.
     values: Vec<String>,
 }
 
 impl SimpleRegister {
-    fn new_with_values(name: char, values: Vec<String>) -> Self {
+    fn new_with_values(name: char, mut values: Vec<String>) -> Self {
+        values.reverse();
         Self { name, values }
     }
 }
@@ -128,17 +132,18 @@ impl Register for SimpleRegister {
 
     fn preview(&self) -> &str {
         self.values
-            .first()
+            .last()
             .and_then(|s| s.lines().next())
             .unwrap_or("<empty>")
     }
 
     fn read<'a>(&'a self, _editor: &Editor) -> RegisterValues<'a> {
-        Box::new(self.values.iter().map(Cow::from))
+        Box::new(self.values.iter().map(Cow::from).rev())
     }
 
     fn write(&mut self, _editor: &mut Editor, values: Vec<String>) -> Result<()> {
         self.values = values;
+        self.values.reverse();
         Ok(())
     }
 
